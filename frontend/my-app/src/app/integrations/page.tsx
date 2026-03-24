@@ -1,23 +1,40 @@
 "use client";
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { 
   Zap, Slack, Github, Linkedin, MessageSquare, 
-  Globe, Database, ShieldCheck, Cpu, Sparkles, 
-  ArrowUpRight, Share2, Link as LinkIcon, Layers
+  ShieldCheck, Cpu, Sparkles, 
+  ArrowUpRight, Share2, Layers
 } from 'lucide-react';
-import Link from 'next/link';
+import { LucideIcon } from 'lucide-react';
 
-// Animation Variants
-const cardVariant = {
+// --- Types for Props ---
+interface IntegrationCardProps {
+  icon: LucideIcon;
+  name: string;
+  category: string;
+  desc: string;
+  i: number;
+  color: string;
+}
+
+// --- Animation Variants Fix ---
+// 'as const' use karne se TS ko pata chalta hai ki ye cubic-bezier array hai
+const cardVariant: Variants = {
   hidden: { opacity: 0, scale: 0.9, y: 20 },
   visible: (i: number) => ({
-    opacity: 1, scale: 1, y: 0,
-    transition: { delay: i * 0.1, duration: 0.5, ease: [0.215, 0.61, 0.355, 1] }
+    opacity: 1, 
+    scale: 1, 
+    y: 0,
+    transition: { 
+      delay: i * 0.1, 
+      duration: 0.5, 
+      ease: [0.215, 0.61, 0.355, 1] as const // Fixed: Added 'as const'
+    }
   })
 };
 
-const IntegrationCard = ({ icon: Icon, name, category, desc, i, color }: any) => (
+const IntegrationCard = ({ icon: Icon, name, category, desc, i, color }: IntegrationCardProps) => (
   <motion.div
     custom={i}
     initial="hidden"
@@ -66,7 +83,7 @@ export default function IntegrationsPage() {
   return (
     <div className="min-h-screen bg-[#020617] text-white selection:bg-indigo-500 overflow-x-hidden relative">
       
-      {/* Background Neural Grid (Subtle) */}
+      {/* Background Neural Grid */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
 
       <section className="relative pt-32 pb-20 px-6 text-center">
@@ -125,7 +142,7 @@ export default function IntegrationsPage() {
               </div>
            </div>
 
-           {/* Animated Glowing Orbs in Background */}
+           {/* Animated Glowing Orbs */}
            <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }} transition={{ repeat: Infinity, duration: 4 }} className="absolute -top-20 -left-20 w-96 h-96 bg-indigo-500/20 blur-[100px] rounded-full" />
            <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.1, 0.3, 0.1] }} transition={{ repeat: Infinity, duration: 6, delay: 1 }} className="absolute -bottom-20 -right-20 w-96 h-96 bg-emerald-500/20 blur-[100px] rounded-full" />
         </div>

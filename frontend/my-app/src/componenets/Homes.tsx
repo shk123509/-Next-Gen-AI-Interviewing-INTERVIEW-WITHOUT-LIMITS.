@@ -4,7 +4,8 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { 
   Mic, Brain, Zap, ShieldCheck, Globe, Users, 
   BarChart3, Play, CheckCircle2, MessageSquare, 
-  ArrowRight, Sparkles, Command, CPU 
+  ArrowRight, Sparkles, Command, 
+  Cpu // Fixed: Changed from CPU to Cpu
 } from 'lucide-react';
 
 import Link from 'next/link';
@@ -24,35 +25,15 @@ const FadeIn = ({ children, delay = 0 }: { children: React.ReactNode, delay?: nu
 export default function MegaHomePage() {
   const containerRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: containerRef });
+  // Parallax effect for the hero/background
   const yRange = useTransform(scrollYProgress, [0, 1], [0, -200]);
 
   return (
     <div ref={containerRef} className="bg-[#020617] text-white selection:bg-indigo-500 overflow-x-hidden">
       
-      {/* 1. NAVIGATION */}
-      {/* <nav className="fixed top-0 w-full z-50 border-b border-white/5 bg-[#020617]/80 backdrop-blur-md px-6 py-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2 font-bold text-2xl tracking-tighter">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <Mic size={18} />
-            </div>
-            VOX<span className="text-indigo-500">INTERVIEW</span>
-          </div>
-          <div className="hidden md:flex gap-8 text-sm text-slate-400 font-medium">
-            <a href="#" className="hover:text-white transition-colors">Platform</a>
-            <a href="#" className="hover:text-white transition-colors">Solutions</a>
-            <a href="#" className="hover:text-white transition-colors">Enterprise</a>
-            <a href="#" className="hover:text-white transition-colors">Pricing</a>
-          </div>
-          <button className="bg-white text-black px-5 py-2 rounded-full text-sm font-bold hover:bg-indigo-500 hover:text-white transition-all">
-            Get Started
-          </button>
-        </div>
-      </nav> */}
-
-      {/* 2. HERO SECTION (Extreme UI) */}
+      {/* 2. HERO SECTION */}
       <section className="relative min-h-screen flex items-center justify-center pt-20 px-6">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(79,70,229,0.15),transparent_50%)]" />
+        <motion.div style={{ y: yRange }} className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(79,70,229,0.15),transparent_50%)]" />
         <div className="max-w-5xl mx-auto text-center relative z-10">
           <FadeIn>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-xs font-bold uppercase tracking-widest mb-6">
@@ -77,10 +58,10 @@ export default function MegaHomePage() {
           <FadeIn delay={0.4}>
             <div className="mt-12 flex flex-col md:flex-row gap-4 justify-center items-center">
               <Link href={'/main'}>
-              <button className="group relative px-8 py-5 bg-indigo-600 rounded-2xl font-bold text-lg overflow-hidden transition-all hover:scale-105">
-                <span className="relative z-10 flex items-center gap-2">Start Free Pilot <ArrowRight /></span>
-                <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
+                <button className="group relative px-8 py-5 bg-indigo-600 rounded-2xl font-bold text-lg overflow-hidden transition-all hover:scale-105">
+                  <span className="relative z-10 flex items-center gap-2">Start Free Pilot <ArrowRight /></span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
               </Link>
               <p className="text-slate-500 text-sm italic">No credit card required. 10 free interviews included.</p>
             </div>
@@ -88,7 +69,7 @@ export default function MegaHomePage() {
         </div>
       </section>
 
-      {/* 3. BENTO GRID FEATURES (Modern UI) */}
+      {/* 3. BENTO GRID FEATURES */}
       <section className="py-32 px-6 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           
@@ -126,14 +107,19 @@ export default function MegaHomePage() {
                 <p className="text-slate-400">One-click sync with Greenhouse, Lever, and Workday.</p>
               </div>
               <div className="flex gap-4">
-                 {[1,2,3,4].map(i => <div key={i} className="w-16 h-16 bg-slate-800 rounded-2xl border border-white/5 flex items-center justify-center" ><Command size={24} /></div>)}
+                 {[1,2,3,4].map(i => (
+                    <div key={i} className="w-16 h-16 bg-slate-800 rounded-2xl border border-white/5 flex items-center justify-center">
+                        {/* Using Cpu icon reference or Command based on context */}
+                        {i === 1 ? <Cpu size={24} /> : <Command size={24} />}
+                    </div>
+                 ))}
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 4. THE "LIVE AI" VISUALIZER SECTION */}
+      {/* 4. LIVE AI VISUALIZER SECTION */}
       <section className="py-40 bg-white text-black rounded-[4rem]">
         <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-20 items-center">
           <div>
@@ -158,7 +144,6 @@ export default function MegaHomePage() {
           </div>
           <div className="relative">
             <div className="aspect-square bg-slate-100 rounded-[3rem] border-8 border-slate-200 flex items-center justify-center overflow-hidden shadow-2xl">
-                {/* Voice Wave Animation */}
                 <div className="flex gap-2">
                   {[...Array(15)].map((_, i) => (
                     <motion.div
@@ -168,13 +153,6 @@ export default function MegaHomePage() {
                       className="w-3 bg-indigo-600 rounded-full"
                     />
                   ))}
-                </div>
-                <div className="absolute bottom-10 left-10 right-10 bg-white p-4 rounded-2xl shadow-xl flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-slate-200 animate-pulse" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-3 w-3/4 bg-slate-200 rounded" />
-                    <div className="h-3 w-1/2 bg-slate-200 rounded" />
-                  </div>
                 </div>
             </div>
           </div>
@@ -218,88 +196,9 @@ export default function MegaHomePage() {
           <div>
             <h5 className="font-bold mb-6 text-white font-serif tracking-tight">Product</h5>
             <ul className="space-y-4 text-slate-500 text-sm font-medium">
-              <li>
-                <Link href="/features" className="hover:text-indigo-400 transition-all flex items-center gap-1 group">
-                  Features
-                  <Zap size={12} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-amber-400" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/integrations" className="hover:text-indigo-400 transition-all flex items-center gap-1 group">
-                  Integrations
-                  <Command size={12} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/security" className="hover:text-indigo-400 transition-all flex items-center gap-1 group">
-                  Security
-                  <ShieldCheck size={12} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-emerald-400" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/roadmap" className="hover:text-indigo-400 transition-all flex items-center gap-1 group">
-                  Roadmap
-                  <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
-                </Link>
-              </li>
-            </ul>
-          </div>
-         <div>
-            <h5 className="font-bold mb-6 text-white font-serif tracking-tight">Company</h5>
-            <ul className="space-y-4 text-slate-500 text-sm font-medium">
-              <li>
-                <Link href="/about" className="hover:text-indigo-400 transition-all flex items-center gap-2 group">
-                  About Us
-                  <Users size={12} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-sky-400" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/careers" className="hover:text-indigo-400 transition-all flex items-center gap-2 group">
-                  Careers
-                  <span className="bg-indigo-500/10 text-indigo-400 text-[10px] px-1.5 py-0.5 rounded border border-indigo-500/20 ml-1 group-hover:bg-indigo-500 group-hover:text-white transition-all">Hiring</span>
-                </Link>
-              </li>
-              <li>
-                <Link href="/blog" className="hover:text-indigo-400 transition-all flex items-center gap-2 group">
-                  Blog
-                  <MessageSquare size={12} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="hover:text-indigo-400 transition-all flex items-center gap-2 group">
-                  Privacy Policy
-                  <ShieldCheck size={12} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-emerald-400" />
-                </Link>
-              </li>
-            </ul>
-          </div>
-         <div>
-            <h5 className="font-bold mb-6 text-white">Support</h5>
-            <ul className="space-y-4 text-slate-500 text-sm font-medium">
-              <li>
-                <Link href="/docs" className="hover:text-indigo-400 transition-all flex items-center gap-1 group">
-                  Documentation 
-                  <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/api-reference" className="hover:text-indigo-400 transition-all flex items-center gap-1 group">
-                  API Reference
-                  <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/help" className="hover:text-indigo-400 transition-all flex items-center gap-1 group">
-                  Help Center
-                  <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="hover:text-[#4ade80] transition-all flex items-center gap-1 group font-bold">
-                  Contact
-                  <MessageSquare size={12} className="opacity-0 group-hover:opacity-100 transition-all" />
-                </Link>
-              </li>
+              <li><Link href="/features" className="hover:text-indigo-400 transition-all flex items-center gap-1 group">Features <Zap size={12} className="opacity-0 group-hover:opacity-100 transition-all text-amber-400" /></Link></li>
+              <li><Link href="/integrations" className="hover:text-indigo-400 transition-all flex items-center gap-1 group">Integrations <Command size={12} className="opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
+              <li><Link href="/security" className="hover:text-indigo-400 transition-all flex items-center gap-1 group">Security <ShieldCheck size={12} className="opacity-0 group-hover:opacity-100 transition-all text-emerald-400" /></Link></li>
             </ul>
           </div>
         </div>

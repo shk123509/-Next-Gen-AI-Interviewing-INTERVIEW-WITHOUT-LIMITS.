@@ -7,7 +7,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleSignup = async (e) => {
+  const handleSignup = async (e:any) => {
     e.preventDefault();
     setLoading(true);
 
