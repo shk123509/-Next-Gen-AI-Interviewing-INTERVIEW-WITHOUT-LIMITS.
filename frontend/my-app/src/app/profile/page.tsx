@@ -41,7 +41,6 @@ export default function ProfilePage() {
     setTimeout(() => setStatusMsg({ type: "", text: "" }), 4000);
   };
 
-  // --- IMAGE UPLOAD FIX ---
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -58,7 +57,6 @@ export default function ProfilePage() {
       const data = await res.json();
       
       if (data.success) {
-        // Cache busting: naya timestamp add kiya hai taaki image turant refresh ho
         const updatedUrl = `${data.profilePic}?t=${Date.now()}`;
         setUserData((prev: any) => ({ ...prev, profilePic: updatedUrl }));
         showStatus("success", "AVATAR_SYNCED");
@@ -73,20 +71,21 @@ export default function ProfilePage() {
     }
   };
 
-  // --- UPDATED HANDLER: Fixed Name, Email & Password Update ---
+  // --- BUG FIX: Fixed Name & Password endpoints ---
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSyncing(true);
 
-    // Determine target based on active tab
-    const endpoint = activeTab === "profile" ? "update" : "update-password";
-    const method = activeTab === "profile" ? "POST" : "PUT";
+    // FIX: Match these to your actual route filenames
+    const endpoint = activeTab === "profile" ? "/api/profile" : "/api/update-password";
+    const method = "POST"; // Sab update actions POST se handle honge Next.js handlers mein
+
     const body = activeTab === "profile" 
       ? { username: newUsername, email: newEmail } 
       : { oldPassword, newPassword };
 
     try {
-      const res = await fetch(`/api/${endpoint}`, {
+      const res = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -98,17 +97,14 @@ export default function ProfilePage() {
         showStatus("success", "SYSTEM_UPDATED");
         
         if (activeTab === "profile") {
-          // Sync local data immediately
           setUserData((prev: any) => ({ ...prev, username: newUsername, email: newEmail }));
         } else {
-          // Clear password fields on success
           setOldPassword("");
           setNewPassword("");
         }
         
-        // Refresh full profile to ensure backend consistency
         await fetchProfile();
-        setTimeout(() => setIsModalOpen(false), 1500); // Close modal automatically after success
+        setTimeout(() => setIsModalOpen(false), 1500); 
       } else { 
         showStatus("error", data.message || "ACCESS_DENIED"); 
       }
@@ -131,7 +127,6 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200 pt-24 md:pt-44 pb-20 px-4 md:px-10 overflow-x-hidden antialiased">
       
-      {/* --- STATUS TOAST (Visible during updates) --- */}
       <AnimatePresence>
         {statusMsg.text && (
           <motion.div 
@@ -147,13 +142,11 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* Background Decor */}
       <div className="fixed inset-0 z-[-1] overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 blur-[120px] rounded-full" />
       </div>
 
       <div className="max-w-6xl mx-auto">
-        {/* --- HERO CARD --- */}
         <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="relative rounded-[2.5rem] md:rounded-[4rem] p-[1px] bg-gradient-to-b from-white/20 via-white/5 to-transparent overflow-hidden">
           <div className="bg-[#0b1224]/80 backdrop-blur-3xl rounded-[2.4rem] md:rounded-[3.9rem] p-8 md:p-16 flex flex-col md:flex-row items-center gap-10 md:gap-16 relative">
             
@@ -201,7 +194,6 @@ export default function ProfilePage() {
           </div>
         </motion.div>
 
-        {/* --- STATS SECTION --- */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-10">
            <BentoStat icon={<Activity />} label="Health" value="Stable" delay={0.1} color="text-emerald-400" />
            <BentoStat icon={<Timer />} label="Up-Time" value="99.9%" delay={0.2} color="text-indigo-400" />
@@ -210,7 +202,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* --- SETTINGS MODAL --- */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[1000] flex items-end md:items-center justify-center">
@@ -259,7 +250,6 @@ export default function ProfilePage() {
   );
 }
 
-// --- SUB-COMPONENTS ---
 function BentoStat({ icon, label, value, delay, color }: any) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="bg-[#0b1224]/50 border border-white/5 backdrop-blur-2xl rounded-[2.5rem] p-8 h-[160px] flex flex-col justify-between group">

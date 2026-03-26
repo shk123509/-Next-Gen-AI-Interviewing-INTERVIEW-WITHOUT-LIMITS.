@@ -5,7 +5,7 @@ import { dbConnect } from "@/lib/dbConnect";
 import User from "@/model/User";
 import { cookies } from "next/headers";
 
-export async function PUT(req: Request) {
+export async function POST(req: Request) {
   try {
     await dbConnect();
 
