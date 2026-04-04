@@ -47,7 +47,7 @@ export default function UltimateDashboard() {
     <div className="min-h-screen bg-[#050505] text-white selection:bg-blue-500/30">
       
       {/* 🚀 1. FLOATING NAVBAR (NO OVERLAP) */}
-      <nav className="fixed top-0 left-0 right-0 z-[100] px-4 py-4 md:px-10">
+      {/* <nav className="fixed top-0 left-0 right-0 z-[100] px-4 py-4 md:px-10">
         <div className="max-w-7xl mx-auto bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] px-6 py-3 flex justify-between items-center shadow-2xl">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-600 rounded-2xl shadow-[0_0_15px_rgba(37,99,235,0.5)]">
@@ -76,7 +76,7 @@ export default function UltimateDashboard() {
             </button>
           </div>
         </div>
-      </nav>
+      </nav> */}
 
       {/* 🛠️ 2. MAIN CONTENT (With Correct Padding to avoid Navbar Overlap) */}
       <main className="pt-28 md:pt-36 pb-20 px-4 md:px-10 max-w-7xl mx-auto space-y-10">
