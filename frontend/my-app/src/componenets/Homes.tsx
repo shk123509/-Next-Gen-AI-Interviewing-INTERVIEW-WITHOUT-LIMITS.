@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { 
   Mic, Brain, Zap, ShieldCheck, Globe, Users, 
@@ -25,6 +25,17 @@ export default function MegaHomePage() {
   const containerRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: containerRef });
   const yRange = useTransform(scrollYProgress, [0, 1], [0, -200]);
+
+  // 🔥 DYNAMIC USER ID LOGIC (No Dummy)
+  const [activeUserId, setActiveUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Login ke waqt jo ID save ki thi, wahan se uthayega
+    const storedUser = localStorage.getItem("userId"); 
+    if (storedUser) {
+      setActiveUserId(storedUser);
+    }
+  }, []);
 
   return (
     <div ref={containerRef} className="bg-[#020617] text-white selection:bg-indigo-500 overflow-x-hidden antialiased">
@@ -55,14 +66,24 @@ export default function MegaHomePage() {
 
           <FadeIn delay={0.4}>
             <div className="mt-10 md:mt-12 flex flex-col md:flex-row gap-4 justify-center items-center px-4">
-              <Link href={'/main'} className="w-full md:w-auto">
+              
+              {/* 🔥 DYNAMIC QUIZ LINK ADDED */}
+              <Link href={activeUserId ? `/quiz/${activeUserId}` : '/login'} className="w-full md:w-auto">
                 <button className="w-full md:w-auto group relative px-8 py-5 bg-indigo-600 rounded-2xl font-bold text-lg overflow-hidden transition-all hover:scale-105 active:scale-95">
-                  <span className="relative z-10 flex items-center justify-center gap-2">Start Free Pilot <ArrowRight size={20} /></span>
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    {activeUserId ? "Take Coding Challenge" : "Start Free Pilot"} <ArrowRight size={20} />
+                  </span>
                   <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
               </Link>
-              <p className="text-slate-500 text-sm italic text-center">No credit card required. 10 free interviews included.</p>
+              
+              <Link href="/dashboard" className="w-full md:w-auto">
+                <button className="w-full md:w-auto px-8 py-5 bg-white/5 border border-white/10 rounded-2xl font-bold text-lg hover:bg-white/10 transition-all">
+                  Candidate Dashboard
+                </button>
+              </Link>
             </div>
+            <p className="text-slate-500 text-sm italic text-center mt-6">No credit card required. 10 free interviews included.</p>
           </FadeIn>
         </div>
       </section>
@@ -195,7 +216,6 @@ export default function MegaHomePage() {
             <p className="text-slate-500 max-w-xs font-medium leading-relaxed">Building the bridge between talent and opportunity using high-fidelity voice artificial intelligence.</p>
           </div>
           
-          {/* Columns */}
           <div className="space-y-6">
             <h5 className="font-black text-white uppercase text-[11px] tracking-[0.3em] opacity-50">Product</h5>
             <ul className="space-y-4 text-slate-500 text-sm font-bold">

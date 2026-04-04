@@ -21,17 +21,29 @@ export default function ProfilePage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [statusMsg, setStatusMsg] = useState({ type: "", text: "" });
 
+  // --- LOCALSTORAGE LOGIC ---
   const fetchProfile = async () => {
     try {
       const res = await fetch("/api/profile");
       const data = await res.json();
       if (data.success) {
-        setUserData(data.user);
+        // Check if we have a fresher image in LocalStorage
+        const cachedImg = localStorage.getItem("user_avatar");
+        const finalData = { ...data.user };
+        
+        if (cachedImg) {
+          finalData.profilePic = cachedImg;
+        }
+
+        setUserData(finalData);
         setNewUsername(data.user.username);
         setNewEmail(data.user.email);
       }
-    } catch (err) { console.error("Fetch Error:", err); } 
-    finally { setLoading(false); }
+    } catch (err) { 
+      console.error("Fetch Error:", err); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   useEffect(() => { fetchProfile(); }, []);
@@ -44,6 +56,10 @@ export default function ProfilePage() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Optional: Local Preview before upload for instant feel
+    const localPreview = URL.createObjectURL(file);
+    setUserData((prev: any) => ({ ...prev, profilePic: localPreview }));
 
     const formData = new FormData();
     formData.append("image", file);
@@ -58,6 +74,10 @@ export default function ProfilePage() {
       
       if (data.success) {
         const updatedUrl = `${data.profilePic}?t=${Date.now()}`;
+        
+        // Save to LocalStorage to persist across refreshes
+        localStorage.setItem("user_avatar", updatedUrl);
+        
         setUserData((prev: any) => ({ ...prev, profilePic: updatedUrl }));
         showStatus("success", "AVATAR_SYNCED");
       } else {
@@ -71,16 +91,15 @@ export default function ProfilePage() {
     }
   };
 
-  // --- BUG FIX: Fixed Name & Password endpoints ---
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSyncing(true);
 
-    // FIX: Match these to your actual route filenames
-    const endpoint = activeTab === "profile" ? "/api/profile" : "/api/update-password";
-    const method = "POST"; // Sab update actions POST se handle honge Next.js handlers mein
+    const isProfile = activeTab === "profile";
+    const endpoint = isProfile ? "/api/profile" : "/api/update-password";
+    const method = "POST"; 
 
-    const body = activeTab === "profile" 
+    const body = isProfile 
       ? { username: newUsername, email: newEmail } 
       : { oldPassword, newPassword };
 
@@ -95,14 +114,12 @@ export default function ProfilePage() {
 
       if (data.success) {
         showStatus("success", "SYSTEM_UPDATED");
-        
-        if (activeTab === "profile") {
+        if (isProfile) {
           setUserData((prev: any) => ({ ...prev, username: newUsername, email: newEmail }));
         } else {
           setOldPassword("");
           setNewPassword("");
         }
-        
         await fetchProfile();
         setTimeout(() => setIsModalOpen(false), 1500); 
       } else { 
@@ -126,7 +143,6 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200 pt-24 md:pt-44 pb-20 px-4 md:px-10 overflow-x-hidden antialiased">
-      
       <AnimatePresence>
         {statusMsg.text && (
           <motion.div 
@@ -250,6 +266,7 @@ export default function ProfilePage() {
   );
 }
 
+// ... BentoStat and InputBox components stay the same ...
 function BentoStat({ icon, label, value, delay, color }: any) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="bg-[#0b1224]/50 border border-white/5 backdrop-blur-2xl rounded-[2.5rem] p-8 h-[160px] flex flex-col justify-between group">
