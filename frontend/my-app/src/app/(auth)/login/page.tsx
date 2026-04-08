@@ -28,7 +28,7 @@ export default function Login() {
         // Navbar update signal
         window.dispatchEvent(new Event("auth-change"));
         localStorage.setItem("userId", data.userId);
-        window.location.href = "/";
+        window.location.href = "/keys";
 
         router.push('/dashboard'); // login ke baad dashboard
       } 

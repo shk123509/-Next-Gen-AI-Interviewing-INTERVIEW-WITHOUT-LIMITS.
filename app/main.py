@@ -28,13 +28,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+# client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 messages = []
 
 
 class ChatInput(BaseModel):
     message: str | None = None
+    apiKey: str | None = None 
 
 
 # -------- TEXT EXTRACT --------
@@ -74,7 +75,7 @@ def get_ai_response(messages):
 
 # -------- VOICE GENERATION --------
 
-def generate_voice(text):
+def generate_voice(text, client):
 
     try:
 
@@ -146,6 +147,12 @@ def interview(input: ChatInput):
         messages.append(HumanMessage(content=input.message))
 
     ai_message = get_ai_response(messages)
+    api_key = input.apiKey
+
+    if not api_key:
+        return {"error": "API key missing"}
+    
+    client = genai.Client(api_key=api_key)
 
     ai_text = extract_text(ai_message.content)
 
@@ -156,7 +163,7 @@ def interview(input: ChatInput):
 
     for i in range(3):
 
-        audio_base64 = generate_voice(ai_text)
+        audio_base64 = generate_voice(ai_text, client=client)
 
         if audio_base64:
             break

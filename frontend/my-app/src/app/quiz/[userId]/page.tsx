@@ -24,7 +24,13 @@ export default function SecureQuizPage() {
     if (!userId) return;
     const startSecureTest = async () => {
       try {
-        const res = await fetch(`/api/coding/start/${userId}`, { method: "POST" });
+         const apiKey = localStorage.getItem("geminiApiKey"); 
+        const res = await fetch(`/api/coding/start/${userId}`, { method: "POST",
+          body: JSON.stringify({
+            apiKey, // 👈 ADD
+          }),
+         });
+
         const data = await res.json();
         if (data.questions) {
           setQuestions(data.questions);
@@ -45,10 +51,11 @@ export default function SecureQuizPage() {
   const handleFinalSubmit = useCallback(async () => {
     setIsSubmitting(true);
     try {
+      const apiKey = localStorage.getItem("geminiApiKey"); // 👈 ADD
       const res = await fetch(`/api/codings/summit/${testId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answers }),
+        body: JSON.stringify({ answers , apiKey}),
       });
       const result = await res.json();
       router.push(`/dashboard?score=${result.score}&pass=${result.pass}&testId=${testId}`);
