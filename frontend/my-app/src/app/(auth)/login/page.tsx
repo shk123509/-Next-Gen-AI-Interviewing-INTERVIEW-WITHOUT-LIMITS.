@@ -28,9 +28,9 @@ export default function Login() {
         // Navbar update signal
         window.dispatchEvent(new Event("auth-change"));
         localStorage.setItem("userId", data.userId);
-        window.location.href = "/keys";
+        // window.location.href = "/";
 
-        router.push('/dashboard'); // login ke baad dashboard
+        router.push('/keys'); // login ke baad dashboard
       } 
       else {
         alert(data.message || "Invalid credentials");

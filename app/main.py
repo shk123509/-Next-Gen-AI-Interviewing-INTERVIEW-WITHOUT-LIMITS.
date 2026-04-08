@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+
 
 from google import genai
 from google.genai import types
@@ -29,7 +29,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.mount("/", StaticFiles(directory="../frontend", html=True), name="frontend")
+
 
 # client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
