@@ -1,47 +1,50 @@
 "use client";
-import { useRouter } from "next/router";
+
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Page() {
-
-    const router = useRouter();
-    
+  const router = useRouter();
   const [key, setKey] = useState("");
   const [loading, setLoading] = useState(false);
 
   const saveKey = async () => {
-    setLoading(true);
-
-
-    const res = await fetch("/api/save-key", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ geminiApiKey: key }),
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      localStorage.setItem("geminiApiKey", data.key);
-      alert("Key Saved ✅");
-      setKey("");
-      router.push("/")
-    } else {
-
-        console.log(data)
-      alert("Error ❌");
+    if (!key) {
+      alert("Please enter a key ❌");
+      return;
     }
 
-    setLoading(false);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/save-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ geminiApiKey: key }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        localStorage.setItem("geminiApiKey", data.key);
+        alert("Key Saved ✅");
+        setKey("");
+        router.push("/"); // Redirect to home
+      } else {
+        console.error(data);
+        alert("Error saving key ❌");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network or server error ❌");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
-      
       <div className="bg-gray-800 p-8 rounded-2xl shadow-lg w-full max-w-md">
-        
         <h1 className="text-2xl font-bold mb-6 text-center">
           🔐 Save Gemini API Key
         </h1>
@@ -61,9 +64,7 @@ export default function Page() {
         >
           {loading ? "Saving..." : "Save Key"}
         </button>
-
       </div>
-
     </div>
   );
 }
