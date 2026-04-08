@@ -1,3 +1,4 @@
+
 import os
 import io
 import wave
@@ -8,6 +9,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from google import genai
 from google.genai import types
@@ -27,6 +29,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.mount("/", StaticFiles(directory="../frontend", html=True), name="frontend")
 
 # client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
@@ -57,11 +60,18 @@ def extract_text(content):
 
 # -------- AI RESPONSE --------
 
-def get_ai_response(messages):
+def get_ai_response(messages, api_key):
 
     final_ai_message = None
 
-    for event in graph.stream({"messages": messages}, stream_mode="values"):
+    # Proper state with API key
+    state = {
+        "messages": messages,
+        "apiKey": api_key
+    }
+
+    # Pass full state to graph
+    for event in graph.stream(state, stream_mode="values"):
 
         if "messages" in event:
 
@@ -146,11 +156,14 @@ def interview(input: ChatInput):
 
         messages.append(HumanMessage(content=input.message))
 
-    ai_message = get_ai_response(messages)
+
     api_key = input.apiKey
 
     if not api_key:
-        return {"error": "API key missing"}
+        return {"error": "API key missing"}    
+
+    ai_message = get_ai_response(messages, api_key=api_key)
+    
     
     client = genai.Client(api_key=api_key)
 

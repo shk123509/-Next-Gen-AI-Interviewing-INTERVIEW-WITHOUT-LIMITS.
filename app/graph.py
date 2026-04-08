@@ -1,3 +1,4 @@
+
 from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, START, END
 from typing import Annotated
@@ -11,18 +12,25 @@ from langchain_core.messages import SystemMessage
 
 load_dotenv()
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
 
 
 class State(TypedDict):
+    apiKey: str 
     
     messages : Annotated[list, add_messages]
     
 
-llm = init_chat_model(model_provider="google_genai", model="gemini-flash-latest") 
+# llm = init_chat_model(model_provider="google_genai", model="gemini-flash-latest") 
 
 
 def chat_mod(state:State):
+    api_key = state["apiKey"] 
+    llm = init_chat_model(
+        model_provider="google_genai",
+        model="gemini-flash-latest",
+        api_key=api_key   # 👈 MUST
+    )
     system_prompt = SystemMessage(content="""
     AI Interview Agent Prompt (Structured Version)
 Role
