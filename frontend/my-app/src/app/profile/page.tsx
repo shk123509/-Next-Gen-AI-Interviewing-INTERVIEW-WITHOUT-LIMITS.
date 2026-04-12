@@ -42,7 +42,7 @@ export default function ProfilePage() {
     setTimeout(() => setStatusMsg({ type: "", text: "" }), 4000);
   };
 
-  // --- BUG FIX: IMAGE COMPRESSION & ROBUST UPLOAD ---
+  // --- 🛠️ BUG FIX: CLIENT-SIDE COMPRESSION FOR VERCEL ---
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -50,47 +50,45 @@ export default function ProfilePage() {
     setIsSyncing(true);
 
     try {
-      // 1. Compress Image (Mobile Fix)
-      const compressedFile = await compressImage(file);
+      // 1. Create a compressed blob (Vercel limit fix)
+      const compressedBlob = await compressImage(file);
       
-      // 2. Local Preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUserData((prev: any) => ({ ...prev, profilePic: reader.result as string }));
-      };
-      reader.readAsDataURL(compressedFile);
+      // 2. Local Preview for instant feel
+      const previewUrl = URL.createObjectURL(compressedBlob);
+      setUserData((prev: any) => ({ ...prev, profilePic: previewUrl }));
 
-      // 3. Upload with Retry Logic
+      // 3. Form Data with Compressed File
       const formData = new FormData();
-      formData.append("image", compressedFile);
+      formData.append("image", compressedBlob, "avatar.jpg");
 
       const res = await fetch("/api/update-profile-pic", {
         method: "POST",
-        body: formData, // No manual headers, let browser handle boundary
+        body: formData, // Browser will automatically set boundary
       });
 
       const data = await res.json();
+      
       if (data.success) {
-        const updatedUrl = `${data.profilePic}?t=${Date.now()}`;
-        localStorage.setItem("user_avatar", updatedUrl);
-        setUserData((prev: any) => ({ ...prev, profilePic: updatedUrl }));
+        const finalUrl = `${data.profilePic}?t=${Date.now()}`;
+        localStorage.setItem("user_avatar", finalUrl);
+        setUserData((prev: any) => ({ ...prev, profilePic: finalUrl }));
         showStatus("success", "AVATAR_SYNCED");
       } else {
         throw new Error(data.message || "UPLOAD_FAILED");
       }
     } catch (err: any) {
-      console.error("Upload Error:", err);
-      showStatus("error", "UPLOAD_FAILED_TRY_AGAIN");
-      fetchProfile(); // Revert preview
+      console.error("Vercel Upload Error:", err);
+      showStatus("error", "UPLOAD_FAILED_CHECK_SIZE");
+      fetchProfile(); // Revert to old image
     } finally {
       setIsSyncing(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  // Helper function to compress image
-  const compressImage = (file: File): Promise<File> => {
-    return new Promise((resolve) => {
+  // Helper function to resize and compress (Crucial for Vercel)
+  const compressImage = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = (event) => {
@@ -98,20 +96,31 @@ export default function ProfilePage() {
         img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement("canvas");
-          const MAX_WIDTH = 800; // Resize for mobile
-          const scaleSize = MAX_WIDTH / img.width;
-          canvas.width = MAX_WIDTH;
-          canvas.height = img.height * scaleSize;
+          const MAX_SIZE = 800; // Resizing to 800px width
+          let width = img.width;
+          let height = img.height;
 
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height *= MAX_SIZE / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height;
+              height = MAX_SIZE;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
           const ctx = canvas.getContext("2d");
-          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          ctx?.drawImage(img, 0, 0, width, height);
 
           canvas.toBlob((blob) => {
-            if (blob) {
-              const compressedFile = new File([blob], file.name, { type: "image/jpeg", lastModified: Date.now() });
-              resolve(compressedFile);
-            }
-          }, "image/jpeg", 0.7); // 70% Quality
+            if (blob) resolve(blob);
+            else reject(new Error("Compression failed"));
+          }, "image/jpeg", 0.7); // 70% quality is perfect for profile pics
         };
       };
     });
@@ -131,25 +140,30 @@ export default function ProfilePage() {
       });
       const data = await res.json();
       if (data.success) {
-        showStatus("success", "SYSTEM_UPDATED");
+        showStatus("success", "SYNC_COMPLETE");
         if (isProfile) setUserData((prev: any) => ({ ...prev, username: newUsername, email: newEmail }));
         setTimeout(() => setIsModalOpen(false), 1000);
-      } else { showStatus("error", data.message); }
-    } catch (err) { showStatus("error", "CORE_ERROR"); } 
-    finally { setIsSyncing(false); }
+      } else {
+        showStatus("error", data.message);
+      }
+    } catch (err) {
+      showStatus("error", "CORE_SYNC_ERROR");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   if (loading) return (
-    <div className="h-screen bg-[#020617] flex flex-col items-center justify-center">
+    <div className="h-screen bg-[#020617] flex items-center justify-center">
       <Loader2 className="text-indigo-500 animate-spin" size={40} />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-200 pt-24 pb-20 px-4 antialiased">
+    <div className="min-h-screen bg-[#020617] text-slate-200 pt-24 pb-20 px-4">
       <AnimatePresence>
         {statusMsg.text && (
-          <motion.div initial={{ y: -100 }} animate={{ y: 20 }} exit={{ y: -100 }} className={`fixed top-5 left-1/2 -translate-x-1/2 z-[2000] px-6 py-3 rounded-full font-black text-[10px] tracking-widest uppercase border ${statusMsg.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : 'bg-red-500/20 text-red-400 border-red-500/20'}`}>
+          <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 20, opacity: 1 }} exit={{ y: -50, opacity: 0 }} className={`fixed top-5 left-1/2 -translate-x-1/2 z-[3000] px-6 py-3 rounded-full font-black text-[10px] tracking-widest uppercase border ${statusMsg.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : 'bg-red-500/20 text-red-400 border-red-500/20'}`}>
             {statusMsg.text}
           </motion.div>
         )}
@@ -157,29 +171,44 @@ export default function ProfilePage() {
 
       <div className="max-w-6xl mx-auto">
         <div className="relative rounded-[2.5rem] md:rounded-[4rem] p-[1px] bg-gradient-to-b from-white/20 via-white/5 to-transparent">
-          <div className="bg-[#0b1224]/80 backdrop-blur-3xl rounded-[2.4rem] md:rounded-[3.9rem] p-6 md:p-16 flex flex-col md:flex-row items-center gap-8 relative">
-            <div className="relative">
-              <div onClick={() => fileInputRef.current?.click()} className="w-36 h-36 md:w-64 md:h-64 rounded-full p-1 bg-gradient-to-tr from-indigo-500 to-pink-500 cursor-pointer overflow-hidden">
-                <div className="w-full h-full rounded-full bg-slate-950 relative group">
-                  {isSyncing && <div className="absolute inset-0 bg-black/70 z-10 flex items-center justify-center"><Loader2 className="animate-spin" /></div>}
-                  <img src={userData?.profilePic || `https://api.dicebear.com/8.x/bottts-neutral/svg?seed=${userData?.username}`} className="w-full h-full object-cover" alt="profile" />
+          <div className="bg-[#0b1224]/90 backdrop-blur-3xl rounded-[2.4rem] md:rounded-[3.9rem] p-6 md:p-16 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
+            
+            <div className="relative group">
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="w-36 h-36 md:w-64 md:h-64 rounded-full p-1 bg-gradient-to-tr from-indigo-500 to-pink-500 cursor-pointer overflow-hidden shadow-2xl transition-transform active:scale-95"
+              >
+                <div className="w-full h-full rounded-full bg-slate-950 relative overflow-hidden">
+                  {isSyncing && (
+                    <div className="absolute inset-0 bg-black/70 z-20 flex items-center justify-center">
+                      <Loader2 className="animate-spin text-white" />
+                    </div>
+                  )}
+                  <img 
+                    src={userData?.profilePic || `https://api.dicebear.com/8.x/bottts-neutral/svg?seed=${userData?.username}`} 
+                    className="w-full h-full object-cover group-hover:opacity-50 transition-opacity" 
+                    alt="avatar" 
+                  />
                 </div>
               </div>
               <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/jpeg,image/png,image/jpg" />
             </div>
 
             <div className="flex-1 text-center md:text-left">
-              <div className="inline-flex px-4 py-2 rounded-full border border-indigo-500/20 mb-4 text-[9px] font-black uppercase tracking-widest text-indigo-400">Active Node</div>
-              <h1 className="text-3xl md:text-7xl font-black italic uppercase text-white leading-tight">{userData?.username}</h1>
-              <p className="text-slate-500 font-bold text-sm md:text-xl italic">{userData?.email}</p>
+              <span className="text-indigo-400 text-[10px] font-black uppercase tracking-[0.4em]">Node Verified</span>
+              <h1 className="text-4xl md:text-7xl font-black italic uppercase text-white mt-2 leading-tight truncate max-w-full">
+                {userData?.username}
+              </h1>
+              <p className="text-slate-500 font-bold text-sm md:text-xl italic opacity-60">{userData?.email}</p>
             </div>
 
-            <button onClick={() => setIsModalOpen(true)} className="absolute top-4 right-4 md:static w-10 h-10 md:w-20 md:h-20 bg-white/5 border border-white/10 rounded-full flex items-center justify-center hover:bg-white hover:text-black transition-all">
-              <Settings size={20} />
+            <button onClick={() => setIsModalOpen(true)} className="absolute top-4 right-4 md:static w-12 h-12 md:w-20 md:h-20 bg-white/5 border border-white/10 rounded-full flex items-center justify-center hover:bg-white hover:text-black transition-all">
+              <Settings size={22} />
             </button>
           </div>
         </div>
 
+        {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
            <BentoStat icon={<Activity size={20}/>} label="Health" value="Stable" color="text-emerald-400" />
            <BentoStat icon={<Timer size={20}/>} label="Up-Time" value="99.9%" color="text-indigo-400" />
@@ -188,32 +217,37 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-[1000] flex items-end md:items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsModalOpen(false)} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="relative w-full max-w-xl bg-[#0b1224] border border-white/10 rounded-[2.5rem] p-6 md:p-12 shadow-2xl">
+          <div className="fixed inset-0 z-[2000] flex items-end md:items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsModalOpen(false)} className="absolute inset-0 bg-black/95 backdrop-blur-md" />
+            <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="relative w-full max-w-xl bg-[#0b1224] border border-white/10 rounded-[2.5rem] p-6 md:p-12 shadow-2xl">
               <div className="flex justify-between items-center mb-8">
                 <h2 className="text-2xl font-black italic uppercase text-white">Settings</h2>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 bg-white/5 rounded-xl"><X size={20}/></button>
+                <button onClick={() => setIsModalOpen(false)} className="p-2 bg-white/5 rounded-xl hover:text-red-500 transition-colors"><X size={20}/></button>
               </div>
 
               <div className="flex bg-black/40 rounded-xl p-1 border border-white/5 mb-6">
                 {["profile", "password"].map((tab) => (
-                  <button key={tab} onClick={() => setActiveTab(tab as any)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase tracking-widest ${activeTab === tab ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}>{tab}</button>
+                  <button key={tab} onClick={() => setActiveTab(tab as any)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500'}`}>{tab}</button>
                 ))}
               </div>
 
               <form className="space-y-4" onSubmit={handleUpdate}>
                 {activeTab === "profile" ? (
-                  <><InputBox label="Alias" icon={<User size={16}/>} value={newUsername} onChange={setNewUsername} />
-                  <InputBox label="Neural Link" icon={<Mail size={16}/>} value={newEmail} onChange={setNewEmail} /></>
+                  <>
+                    <InputBox label="Identity Alias" icon={<User size={16}/>} value={newUsername} onChange={setNewUsername} />
+                    <InputBox label="Neural Link" icon={<Mail size={16}/>} value={newEmail} onChange={setNewEmail} />
+                  </>
                 ) : (
-                  <><InputBox label="Current Key" type="password" icon={<Lock size={16}/>} value={oldPassword} onChange={setOldPassword} />
-                  <InputBox label="New Key" type="password" icon={<KeyRound size={16}/>} value={newPassword} onChange={setNewPassword} /></>
+                  <>
+                    <InputBox label="Current Key" type="password" icon={<Lock size={16}/>} value={oldPassword} onChange={setOldPassword} />
+                    <InputBox label="New Private Key" type="password" icon={<KeyRound size={16}/>} value={newPassword} onChange={setNewPassword} />
+                  </>
                 )}
-                <button type="submit" disabled={isSyncing} className="w-full bg-white text-black py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-3">
-                  {isSyncing ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>} Sync Update
+                <button type="submit" disabled={isSyncing} className="w-full bg-white text-black py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
+                  {isSyncing ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>} Commit Changes
                 </button>
               </form>
             </motion.div>
@@ -226,7 +260,7 @@ export default function ProfilePage() {
 
 function BentoStat({ icon, label, value, color }: any) {
   return (
-    <div className="bg-[#0b1224]/50 border border-white/5 backdrop-blur-2xl rounded-[2rem] p-5 h-[130px] flex flex-col justify-between">
+    <div className="bg-[#0b1224]/50 border border-white/5 backdrop-blur-2xl rounded-[2rem] p-5 h-[130px] flex flex-col justify-between group hover:bg-white/5 transition-colors">
        <div className={`w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center ${color}`}>{icon}</div>
        <div>
           <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest">{label}</p>
