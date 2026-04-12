@@ -24,13 +24,29 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/profile/:path*",
-    "/platform/:path*",
-    "/main/:path*",
-    "/login",
-    "/signup",
+    "/dashboard",
+    "/profile",
+    "/platform",
+    "/main",
+
+    "/api",
+    "/apti",
+    "/blog",
+    "/careers",
+    "/checkout",
+    "/features",
+    "/integrations",
+    "/keys",
+    "/portfolio",
+    "/pricing",
+    "/quiz",
+    "/roadmap",
+
+    "/about",
     "/enterprise",
-    "/certificate"
-  ],
+    "/certificate",
+
+    "/login",
+    "/signup"
+  ]
 };
