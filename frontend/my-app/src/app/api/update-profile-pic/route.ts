@@ -1,51 +1,98 @@
-import { NextRequest, NextResponse } from "next/server";
-import path from "path";
-import fs from "fs/promises";
+import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
+import { dbConnect } from "@/lib/dbConnect";
+import User from "@/model/User";
+import { v2 as cloudinary } from "cloudinary";
 
-export async function POST(req: NextRequest) {
+// Cloudinary Configuration (Inko Vercel ke Environment Variables mein zaroor daalein)
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+export async function GET(req: Request) {
   try {
-    const formData = await req.formData();
-    const file = formData.get("image") as File;
+    await dbConnect();
+    const cookieStore = await cookies();
+    let token = cookieStore.get("token")?.value;
 
-    if (!file) {
-      return NextResponse.json({ success: false, message: "No file uploaded" }, { status: 400 });
+    if (!token) {
+      const authHeader = req.headers.get("authorization");
+      if (authHeader?.startsWith("Bearer ")) token = authHeader.split(" ")[1];
     }
 
-    // File ko buffer mein convert karo
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    if (!token) return NextResponse.json({ success: false, message: "No token" }, { status: 401 });
 
-    // File name unique banao (taaki overlap na ho)
-    const fileName = `${Date.now()}-${file.name.replaceAll(" ", "_")}`;
-    
-    // Public/uploads folder ka path (Ensure karo ye folder 'public' ke andar ho)
-    const uploadDir = path.join(process.cwd(), "public/uploads");
-    
-    // Agar folder nahi hai toh bana do
-    try {
-      await fs.access(uploadDir);
-    } catch {
-      await fs.mkdir(uploadDir, { recursive: true });
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    const user = await User.findById(decoded.id).select("-password");
+
+    return NextResponse.json({ success: true, user });
+  } catch (error) {
+    return NextResponse.json({ success: false, message: "Invalid token" }, { status: 401 });
+  }
+}
+
+// --- UPDATED POST: Handles both Profile Data and Photo ---
+export async function POST(req: Request) {
+  try {
+    await dbConnect();
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
+
+    if (!token) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    const filePath = path.join(uploadDir, fileName);
-    await fs.writeFile(filePath, buffer);
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    
+    // 🛠️ CHECK CONTENT TYPE: FormData (for Photo) or JSON (for text)
+    const contentType = req.headers.get("content-type") || "";
+    let updateData: any = {};
 
-    // Ye URL frontend ko wapas bhejenge
-    const fileUrl = `/uploads/${fileName}`;
+    if (contentType.includes("multipart/form-data")) {
+      // HANDLE PHOTO UPLOAD
+      const formData = await req.formData();
+      const file = formData.get("image") as File;
 
-    // --- YAHAN APNA DATABASE UPDATE KARO ---
-    // Example: await db.user.update({ where: { id: userId }, data: { profilePic: fileUrl } })
-    // ---------------------------------------
+      if (file) {
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
 
-    return NextResponse.json({ 
-      success: true, 
-      profilePic: fileUrl,
-      message: "Image uploaded successfully" 
+        // Upload to Cloudinary
+        const uploadResult: any = await new Promise((resolve, reject) => {
+          cloudinary.uploader.upload_stream({ folder: "user_profiles" }, (error : any, result : any) => {
+            if (error) reject(error);
+            else resolve(result);
+          }).end(buffer);
+        });
+
+        updateData.profilePic = uploadResult.secure_url;
+      }
+    } else {
+      // HANDLE TEXT UPDATE (Username/Email)
+      const body = await req.json();
+      updateData.username = body.username;
+      updateData.email = body.email;
+    }
+
+    // Database update
+    const updatedUser = await User.findByIdAndUpdate(
+      decoded.id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    return NextResponse.json({
+      success: true,
+      message: "SYSTEM_UPDATED",
+      user: updatedUser,
+      profilePic: updatedUser.profilePic // Frontend expects this for avatar update
     });
 
-  } catch (error) {
-    console.error("Error uploading file:", error);
-    return NextResponse.json({ success: false, message: "Upload failed" }, { status: 500 });
+  } catch (error: any) {
+    console.error("SERVER ERROR:", error);
+    return NextResponse.json({ success: false, message: error.message || "Server Error" }, { status: 500 });
   }
 }
