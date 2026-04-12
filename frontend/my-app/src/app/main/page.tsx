@@ -47,7 +47,7 @@ export default function InterviewPage() {
     setIsLoading(true);
     try {
       const apiKey = localStorage.getItem("geminiApiKey");
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/interview`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_zAPI_URL}/interview`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
