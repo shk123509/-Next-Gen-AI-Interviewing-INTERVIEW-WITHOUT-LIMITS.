@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import mongoose, { models, model, Schema } from "mongoose";
+import { dbConnect } from "@/lib/dbConnect";
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://shakib:vihar2026@cluster0.emhmf2c.mongodb.net/interview";
 
@@ -20,16 +21,16 @@ const CodingTestSchema = new Schema({
 const CodingTest = models.CodingTest || model("CodingTest", CodingTestSchema);
 
 /* ================= MONGODB CONNECTION ================= */
-async function connectDB() {
-  if (mongoose.connection.readyState >= 1) return;
-  await mongoose.connect(MONGO_URI);
-}
+// async function connectDB() {
+//   if (mongoose.connection.readyState >= 1) return;
+//   await mongoose.connect(MONGO_URI);
+// }
 
 /* ================= SUBMIT API HANDLER ================= */
 // FIXED: params ko Promise type diya gaya hai
 export async function POST(req: Request, { params }: { params: Promise<{ testId: string }> }) {
   try {
-    await connectDB();
+    await dbConnect();
     
     // 1. 🔥 FIXED: Await params to get testId
     const resolvedParams = await params;

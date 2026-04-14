@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"; // NextRequest use kar build safety ke liye
 import mongoose, { Schema, models, model } from "mongoose";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { dbConnect } from "@/lib/dbConnect";
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://shakib:vihar2026@cluster0.emhmf2c.mongodb.net/interview";
 // const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
@@ -14,10 +15,10 @@ const CodingTestSchema = new Schema({
 
 const CodingTest = models.CodingTest || model("CodingTest", CodingTestSchema);
 
-async function connectDB() {
-  if (mongoose.connection.readyState >= 1) return;
-  await mongoose.connect(MONGO_URI);
-}
+// async function connectDB() {
+//   if (mongoose.connection.readyState >= 1) return;
+//   await mongoose.connect(MONGO_URI);
+// }
 
 
 
@@ -30,7 +31,7 @@ export async function POST(
   try {
 
 
-    await connectDB();
+    await dbConnect();
 
 
 
