@@ -286,7 +286,7 @@ What steps are you currently taking to achieve your goal of becoming a skilled s
 - Give constructive feedback.
 - Then ask the next question.
 - Maintain professional interview tone.
-- Total interview: 40 questions, rounds of 10.
+- Total interview: 10 questions only.
 """)
     message = llm.invoke([system_prompt] + state["messages"])
 
