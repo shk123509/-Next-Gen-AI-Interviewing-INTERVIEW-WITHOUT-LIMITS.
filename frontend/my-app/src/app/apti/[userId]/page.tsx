@@ -23,7 +23,7 @@ export default function SecureQuizPage() {
     const startSecureTest = async () => {
       try {
         const apiKey = localStorage.getItem("geminiApiKey"); 
-        const res = await fetch(`/api/coding/start/${userId}`, { 
+        const res = await fetch(`/api/aptitute/start/${userId}`, { 
           method: "POST",
           body: JSON.stringify({ apiKey }),
         });
@@ -50,13 +50,13 @@ export default function SecureQuizPage() {
     setIsSubmitting(true);
     try {
       const apiKey = localStorage.getItem("geminiApiKey");
-      const res = await fetch(`/api/codings/summit/${testId}`, {
+      const res = await fetch(`/api/aptitutes/sumbit/${testId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answers, apiKey }),
       });
       const result = await res.json();
-      router.push(`/apti/${userId}`);
+      router.push(`/main`);
     } catch (err) {
       alert("Submission failed. Check connection.");
       setIsSubmitting(false);
@@ -75,16 +75,16 @@ export default function SecureQuizPage() {
   }, [timeLeft, loading, isSubmitting, handleFinalSubmit]);
 
   // 4. Anti-Cheat
-  useEffect(() => {
-    const handleSecurityBreach = () => {
-      if (document.hidden) {
-        alert("🚨 SECURITY ALERT: Tab switching detected.");
-        router.push("/dashboard?status=failed_by_cheat");
-      }
-    };
-    document.addEventListener("visibilitychange", handleSecurityBreach);
-    return () => document.removeEventListener("visibilitychange", handleSecurityBreach);
-  }, [router]);
+  // useEffect(() => {
+  //   const handleSecurityBreach = () => {
+  //     if (document.hidden) {
+  //       alert("🚨 SECURITY ALERT: Tab switching detected.");
+  //       router.push("/dashboard?status=failed_by_cheat");
+  //     }
+  //   };
+  //   document.addEventListener("visibilitychange", handleSecurityBreach);
+  //   return () => document.removeEventListener("visibilitychange", handleSecurityBreach);
+  // }, [router]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
