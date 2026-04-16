@@ -18,9 +18,10 @@ function validateQuestions(questions: any[]) {
 }
 
 export async function POST(
-    req: NextRequest,
-    { params }: { params: { userId: string } } // ✅ FIXED PARAM TYPE
+  req: NextRequest,
+  context: { params: Promise<{ userId: string }> }
 ) {
+  
     try {
         await dbConnect();
 
@@ -31,8 +32,7 @@ export async function POST(
             return NextResponse.json({ error: "API key missing" }, { status: 400 });
         }
 
-         const resolvedParams = await params;
-        const userId = resolvedParams.userId;
+         const { userId } = await context.params;
 
         if (!userId) {
             return NextResponse.json({ error: "User ID missing" }, { status: 400 });
