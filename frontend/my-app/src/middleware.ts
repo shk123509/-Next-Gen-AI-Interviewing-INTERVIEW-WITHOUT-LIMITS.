@@ -24,29 +24,35 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/dashboard",
-    "/profile",
-    "/platform",
-    "/main",
+  "/dashboard",
+  "/profile",
+  "/platform",
+  "/main",
 
-    "/api",
-    "/apti",
-    "/blog",
-    "/careers",
-    "/checkout",
-    "/features",
-    "/integrations",
-    "/keys",
-    "/portfolio",
-    "/pricing",
-    "/quiz",
-    "/roadmap",
+  "/api",
+  "/apti",
+  "/aptitute",
+  "/blog",
+  "/careers",
+  "/chat",
+  "/checkout",
+  "/docs",
+  "/features",
+  "/integrations",
+  "/keys",
+  "/portfolio",
+  "/pricing",
+  "/quiz",
+  "/roadmap",
+  "/help",
 
-    "/about",
-    "/enterprise",
-    "/certificate",
+  "/about",
+  "/certificate",
+  "/enterprise",
+  "/privacy",
+  "/security",
 
-    "/login",
-    "/signup"
-  ]
+  "/login",
+  "/signup"
+]
 };

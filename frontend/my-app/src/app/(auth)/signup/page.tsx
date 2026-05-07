@@ -12,7 +12,7 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      console.log("Sending data:", form); // Debugging ke liye
+      console.log("Sending data:", form);
 
       const res = await fetch('/api/signup', {
         method: 'POST',
@@ -24,20 +24,16 @@ export default function Signup() {
         }),
       });
 
-      const data = await res.json(); // Backend se message pakdo
+      const data = await res.json();
 
       if (res.status === 200 || res.status === 201) {
-        // Data save karo
         localStorage.setItem('user', JSON.stringify({ email: form.email }));
         
-        // Navbar ko dhakka maro update hone ke liye
         window.dispatchEvent(new Event("auth-change"));
         
-        // Redirect
         router.push('/');
         router.refresh();
       } else {
-        // Agar backend error message de raha hai toh wahi dikhao
         alert(data.message || "Signup failed! Try another email.");
       }
     } catch (err) {
@@ -60,7 +56,6 @@ export default function Signup() {
             <input 
               required
               className="w-full bg-[#161616] border border-white/5 p-4 rounded-2xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-              placeholder=""
               onChange={(e) => setForm({...form, username: e.target.value})}
             />
           </div>
@@ -71,7 +66,6 @@ export default function Signup() {
               required
               type="email" 
               className="w-full bg-[#161616] border border-white/5 p-4 rounded-2xl outline-none focus:border-blue-500 transition-all"
-              placeholder=""
               onChange={(e) => setForm({...form, email: e.target.value})}
             />
           </div>
@@ -82,7 +76,6 @@ export default function Signup() {
               required
               type="password" 
               className="w-full bg-[#161616] border border-white/5 p-4 rounded-2xl outline-none focus:border-blue-500 transition-all"
-              placeholder=""
               onChange={(e) => setForm({...form, password: e.target.value})}
             />
           </div>
@@ -95,6 +88,18 @@ export default function Signup() {
             {loading ? "CHECKING..." : "CREATE ACCOUNT →"}
           </button>
         </form>
+
+        {/* 🔥 NEW LOGIN OPTION */}
+        <p className="text-center text-sm text-gray-400 mt-6">
+          Already have an account?{" "}
+          <span 
+            onClick={() => router.push('/login')}
+            className="text-blue-500 hover:underline cursor-pointer font-semibold"
+          >
+            Login
+          </span>
+        </p>
+
       </div>
     </div>
   );

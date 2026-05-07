@@ -47,7 +47,7 @@ export default function Navbar() {
 
   const navLinks = [
     { name: "Platform", href: "/platform" },
-    { name: "AI-Voices", href: "/main" },
+    // { name: "AI-Voices", href: "/main" },
     { name: "Enterprise", href: "/enterprise" },
     { name: "Pricing", href: "/pricing" },
   ];
