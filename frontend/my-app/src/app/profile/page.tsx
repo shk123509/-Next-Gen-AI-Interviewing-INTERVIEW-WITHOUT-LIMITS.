@@ -6,8 +6,29 @@ import {
   Loader2, ShieldCheck, Activity, Cpu, Timer, KeyRound
 } from "lucide-react";
 
+interface UserDataType {
+  username: string;
+  email: string;
+  profilePic?: string;
+}
+
+interface BentoStatProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  color: string;
+}
+
+interface InputBoxProps {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  onChange: (val: string) => void;
+  type?: string;
+}
+
 export default function ProfilePage() {
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<UserDataType | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -15,19 +36,19 @@ export default function ProfilePage() {
 
   const [newUsername, setNewUsername] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  
   const [isSyncing, setIsSyncing] = useState(false);
   const [statusMsg, setStatusMsg] = useState({ type: "", text: "" });
 
-  // --- 1. Fetch Profile Logic (Fixed undefined issue) ---
   const fetchProfile = async () => {
     try {
       const res = await fetch("/api/profile");
       const data = await res.json();
       
-      if (data.success) {
-        // Validation: Check if cached image is a valid URL string
+      if (data.success && data.user) {
         const cachedImg = localStorage.getItem("user_avatar");
         const finalImg = (cachedImg && cachedImg !== "undefined" && cachedImg !== "null") 
           ? cachedImg 
@@ -51,7 +72,6 @@ export default function ProfilePage() {
     setTimeout(() => setStatusMsg({ type: "", text: "" }), 4000);
   };
 
-  // --- 2. Image Compression (For Vercel/Cloudinary Stability) ---
   const compressImage = (file: File): Promise<Blob> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -73,7 +93,6 @@ export default function ProfilePage() {
     });
   };
 
-  // --- 3. Robust Photo Upload Fix ---
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -86,19 +105,24 @@ export default function ProfilePage() {
 
       const res = await fetch("/api/profile", {
         method: "POST",
-        body: formData,
+        body: formData, 
       });
 
       const data = await res.json();
-      if (data.success && data.profilePic) {
-        const finalUrl = data.profilePic;
-        localStorage.setItem("user_avatar", finalUrl);
-        setUserData((prev: any) => ({ ...prev, profilePic: finalUrl }));
+      const finalImageUrl = data.profilePic || data.user?.profilePic || data.user?.avatar;
+
+      if (data.success && finalImageUrl) {
+        localStorage.setItem("user_avatar", finalImageUrl);
+        setUserData((prev) => prev ? { ...prev, profilePic: finalImageUrl } : null);
         showStatus("success", "AVATAR_SYNCED");
+      } else if (data.success) {
+        showStatus("success", "AVATAR_SYNCED");
+        fetchProfile();
       } else {
         throw new Error(data.message || "UPLOAD_FAILED");
       }
     } catch (err) {
+      console.error("Upload Error:", err);
       showStatus("error", "UPLOAD_FAILED");
     } finally {
       setIsSyncing(false);
@@ -109,20 +133,44 @@ export default function ProfilePage() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSyncing(true);
+
     try {
-      const res = await fetch("/api/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: newUsername, email: newEmail }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        showStatus("success", "PROFILE_UPDATED");
-        setUserData((prev: any) => ({ ...prev, username: newUsername, email: newEmail }));
-        setTimeout(() => setIsModalOpen(false), 1000);
+      if (activeTab === "profile") {
+        const res = await fetch("/api/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: newUsername, email: newEmail }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          showStatus("success", "PROFILE_UPDATED");
+          setUserData((prev) => prev ? { ...prev, username: newUsername, email: newEmail } : null);
+          setTimeout(() => setIsModalOpen(false), 1000);
+        } else {
+          showStatus("error", data.message || "SYNC_ERROR");
+        }
+      } else {
+        const res = await fetch("/api/update-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ oldPassword, newPassword }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          showStatus("success", "PASSWORD_CHANGED");
+          setOldPassword("");
+          setNewPassword("");
+          setTimeout(() => setIsModalOpen(false), 1000);
+        } else {
+          showStatus("error", data.message || "PASSWORD_FAILED");
+        }
       }
-    } catch (err) { showStatus("error", "SYNC_ERROR"); } 
-    finally { setIsSyncing(false); }
+    } catch (err) { 
+      showStatus("error", "SERVER_CONNECT_ERROR"); 
+    } finally { 
+      setIsSyncing(false); 
+    }
   };
 
   if (loading) return (
@@ -145,25 +193,29 @@ export default function ProfilePage() {
         <div className="relative rounded-[2.5rem] md:rounded-[4rem] p-[1px] bg-gradient-to-b from-white/20 via-white/5 to-transparent">
           <div className="bg-[#0b1224]/80 backdrop-blur-3xl rounded-[2.4rem] md:rounded-[3.9rem] p-6 md:p-16 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
             
+            {/* 📸 AVATAR CONTAINER FIX */}
             <div className="relative group">
               <div 
                 onClick={() => fileInputRef.current?.click()}
                 className="w-36 h-36 md:w-64 md:h-64 rounded-full p-1 bg-gradient-to-tr from-indigo-500 to-pink-500 cursor-pointer overflow-hidden shadow-2xl"
               >
-                <div className="w-full h-full rounded-full bg-slate-950 relative overflow-hidden">
+                <div className="w-full h-full rounded-full bg-slate-900/50 relative overflow-hidden flex items-center justify-center">
                   {isSyncing && (
-                    <div className="absolute inset-0 bg-black/70 z-20 flex items-center justify-center">
-                      <Loader2 className="animate-spin text-white" />
+                    <div className="absolute inset-0 bg-black/80 z-20 flex items-center justify-center">
+                      <Loader2 className="animate-spin text-indigo-400" />
                     </div>
                   )}
-                  {/* BUG FIX: Added proper fallback URL to prevent 'undefined' 404 */}
                   <img 
-                    src={userData?.profilePic && userData.profilePic !== "undefined" 
+                    src={userData?.profilePic && userData.profilePic !== "undefined" && userData.profilePic !== "null"
                          ? userData.profilePic 
                          : `https://api.dicebear.com/8.x/bottts-neutral/svg?seed=${userData?.username || 'user'}`} 
-                    className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" 
+                    className="w-full h-full object-cover block opacity-100 relative z-10 transition-all duration-300 group-hover:scale-105" 
                     alt="avatar" 
-                    onError={(e: any) => { e.target.src = "https://api.dicebear.com/8.x/bottts-neutral/svg?seed=fallback"; }}
+                    loading="eager"
+                    onError={(e: any) => { 
+                      e.target.onerror = null;
+                      e.target.src = `https://api.dicebear.com/8.x/bottts-neutral/svg?seed=${userData?.username || 'fallback'}`; 
+                    }}
                   />
                 </div>
               </div>
@@ -190,7 +242,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Modal & Form - Keeping it same but updated handleUpdate */}
+      {/* Settings Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[2000] flex items-end md:items-center justify-center p-4">
@@ -198,12 +250,12 @@ export default function ProfilePage() {
             <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="relative w-full max-w-xl bg-[#0b1224] border border-white/10 rounded-[2.5rem] p-6 md:p-12">
               <div className="flex justify-between items-center mb-8">
                 <h2 className="text-2xl font-black italic uppercase text-white">Settings</h2>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 bg-white/5 rounded-xl"><X size={20}/></button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="p-2 bg-white/5 rounded-xl"><X size={20}/></button>
               </div>
 
               <div className="flex bg-black/40 rounded-xl p-1 border border-white/5 mb-6">
                 {["profile", "password"].map((tab) => (
-                  <button key={tab} onClick={() => setActiveTab(tab as any)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase tracking-widest ${activeTab === tab ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}>{tab}</button>
+                  <button key={tab} type="button" onClick={() => setActiveTab(tab as any)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase tracking-widest ${activeTab === tab ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}>{tab}</button>
                 ))}
               </div>
 
@@ -214,9 +266,13 @@ export default function ProfilePage() {
                     <InputBox label="Neural Link" icon={<Mail size={16}/>} value={newEmail} onChange={setNewEmail} />
                   </>
                 ) : (
-                  <p className="text-center text-slate-500 text-xs py-10">Password update module standby...</p>
+                  <>
+                    <InputBox label="Current Password" type="password" icon={<Lock size={16}/>} value={oldPassword} onChange={setOldPassword} />
+                    <InputBox label="New Secure Password" type="password" icon={<KeyRound size={16}/>} value={newPassword} onChange={setNewPassword} />
+                  </>
                 )}
-                <button type="submit" disabled={isSyncing} className="w-full bg-white text-black py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 flex items-center justify-center gap-3">
+                
+                <button type="submit" disabled={isSyncing} className="w-full bg-white text-black py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50">
                   {isSyncing ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>} Sync Changes
                 </button>
               </form>
@@ -228,7 +284,7 @@ export default function ProfilePage() {
   );
 }
 
-function BentoStat({ icon, label, value, color }: any) {
+function BentoStat({ icon, label, value, color }: BentoStatProps) {
   return (
     <div className="bg-[#0b1224]/50 border border-white/5 rounded-[2rem] p-5 h-[130px] flex flex-col justify-between">
        <div className={`w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center ${color}`}>{icon}</div>
@@ -240,7 +296,7 @@ function BentoStat({ icon, label, value, color }: any) {
   );
 }
 
-function InputBox({ label, icon, value, onChange, type = "text" }: any) {
+function InputBox({ label, icon, value, onChange, type = "text" }: InputBoxProps) {
   return (
     <div className="space-y-1">
       <label className="text-[8px] font-black uppercase text-slate-500 tracking-widest ml-3">{label}</label>
@@ -250,4 +306,4 @@ function InputBox({ label, icon, value, onChange, type = "text" }: any) {
       </div>
     </div>
   );
-}
+} 
