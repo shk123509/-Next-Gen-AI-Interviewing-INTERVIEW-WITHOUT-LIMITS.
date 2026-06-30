@@ -19,10 +19,7 @@ export default function InterviewPage() {
   const accumulatedTextRef = useRef<string>(""); 
   const messagesRef = useRef<{ role: string, text: string }[]>([]);
 
-  // Sync messages state to our reference hook safely
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   const startCamera = async () => {
     try {
@@ -37,60 +34,36 @@ export default function InterviewPage() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       const rec = new SpeechRecognition();
-      rec.continuous = true; 
-      rec.interimResults = true; 
-      rec.lang = 'en-US';
+      rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US';
       
       rec.onresult = (e: any) => {
         let finalTranscript = "";
         for (let i = e.resultIndex; i < e.results.length; i++) {
-          if (e.results[i].isFinal) {
-            finalTranscript += e.results[i][0].transcript + " ";
-          }
+          if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript + " ";
         }
-        if (finalTranscript) {
-          accumulatedTextRef.current += finalTranscript;
-        }
+        if (finalTranscript) accumulatedTextRef.current += finalTranscript;
       };
 
       rec.onend = () => {
         setIsListening(false);
         const textToSend = accumulatedTextRef.current.trim();
-        if (textToSend) {
-          handleAIInteraction(textToSend);
-          accumulatedTextRef.current = ""; 
-        }
+        if (textToSend) { handleAIInteraction(textToSend); accumulatedTextRef.current = ""; }
       };
-
       recognitionRef.current = rec;
     }
   }, []);
 
   const startMic = () => { 
     if (!isAiSpeaking && !isLoading) { 
-      accumulatedTextRef.current = ""; 
-      setIsListening(true); 
-      try {
-        recognitionRef.current?.start(); 
-      } catch (e) {
-        console.error("Speech recognition start error:", e);
-      }
+      accumulatedTextRef.current = ""; setIsListening(true); 
+      try { recognitionRef.current?.start(); } catch (e) { console.error(e); }
     } 
   };
   
-  const stopMic = () => { 
-    try {
-      recognitionRef.current?.stop(); 
-    } catch (e) {
-      console.error("Speech recognition stop error:", e);
-      setIsListening(false);
-    }
-  };
+  const stopMic = () => { try { recognitionRef.current?.stop(); } catch (e) { setIsListening(false); } };
 
   const handleAIInteraction = async (userText: string | null = null) => {
     setIsLoading(true);
-    
-    // Core adjustment: capture up-to-date state baseline safely
     let currentHistory = [...messagesRef.current];
     
     if (userText) {
@@ -99,65 +72,63 @@ export default function InterviewPage() {
       setMessages(prev => [...prev, newUserMsg]);
     }
 
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://next-gen-ai-interviewing-interview.onrender.com";
+    const apiKey = localStorage.getItem("geminiApiKey");
+
     try {
-      const apiKey = localStorage.getItem("geminiApiKey");
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://next-gen-ai-interviewing-interview.onrender.com";
-      
+      // Step 1: Fetch Text Response Instantly (No Timeout)
       const res = await fetch(`${baseUrl}/interview`, {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify({
-          message: userText,
-          apiKey: apiKey,
-          history: currentHistory, 
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userText, apiKey: apiKey, history: currentHistory }),
       });
-      
-      if (!res.ok) {
-        throw new Error(`Server responded with status: ${res.status}`);
-      }
 
+      if (!res.ok) throw new Error("Server Error");
       const data = await res.json();
       
       if (data.text) {
         setMessages(prev => [...prev, { role: 'ai', text: data.text }]);
-      }
+        setIsLoading(false); // Text is rendered to candidate immediately!
 
-      if (data.audio) {
-        const b64Data = data.audio.replace(/^data:audio\/\w+;base64,/, "");
-        const binaryStr = atob(b64Data);
-        const len = binaryStr.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-          bytes[i] = binaryStr.charCodeAt(i);
-        }
-        const blob = new Blob([bytes], { type: 'audio/wav' });
-        
-        if (audioRef.current) {
-          audioRef.current.src = URL.createObjectURL(blob);
-          setIsAiSpeaking(true);
-          audioRef.current.play().catch(e => console.error("Audio play failed:", e));
+        // Step 2: Fetch Audio in background without blocking execution
+        try {
+          const audioRes = await fetch(`${baseUrl}/tts`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: data.text, apiKey: apiKey }),
+          });
+          const audioData = await audioRes.json();
+          
+          if (audioData.audio) {
+            const b64Data = audioData.audio.replace(/^data:audio\/\w+;base64,/, "");
+            const binaryStr = atob(b64Data);
+            const bytes = new Uint8Array(binaryStr.length);
+            for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+            
+            if (audioRef.current) {
+              audioRef.current.src = URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }));
+              setIsAiSpeaking(true);
+              audioRef.current.play().catch(e => console.error(e));
+            }
+          }
+        } catch (ttsErr) {
+          console.error("Audio streaming skipped safely:", ttsErr);
         }
       }
-    } catch (err) { 
-      console.error("Fetch implementation pipeline stuttered:", err);
-    } finally { 
-      setIsLoading(false); 
+    } catch (err) {
+      console.error(err);
+      setMessages(prev => [...prev, { role: 'ai', text: "Connection error. Please check your network and try again." }]);
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-[#020617] text-white overflow-y-auto">
       <audio ref={audioRef} onEnded={() => setIsAiSpeaking(false)} />
-
       <AnimatePresence mode="wait">
         {!hasStarted ? (
           <motion.div
-            key="intro"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}
+            key="intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}
             className="flex flex-col items-center justify-center min-h-screen p-6 text-center pt-32"
           >
             <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 3 }} className="w-20 h-20 bg-indigo-600 rounded-2xl flex items-center justify-center mb-8">
@@ -174,11 +145,9 @@ export default function InterviewPage() {
           </motion.div>
         ) : (
           <motion.div
-            key="room"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            key="room" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             className="max-w-7xl mx-auto p-6 pt-28 grid grid-cols-1 lg:grid-cols-12 gap-8"
           >
-            {/* LEFT SIDE (Video & Transcript) */}
             <div className="lg:col-span-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="relative aspect-video bg-slate-900 rounded-[2rem] overflow-hidden border border-white/10 group">
@@ -188,22 +157,18 @@ export default function InterviewPage() {
                     <span className="text-[10px] font-bold uppercase tracking-widest">Candidate Feed</span>
                   </div>
                 </div>
-
                 <div className="relative aspect-video bg-indigo-950/10 rounded-[2rem] border border-indigo-500/20 flex flex-col items-center justify-center">
                   <div className="flex items-center gap-1.5 h-12">
                     {[...Array(10)].map((_, i) => (
                       <motion.div
-                        key={i}
-                        animate={isAiSpeaking ? { height: [10, 40, 10] } : { height: 4 }}
-                        transition={{ repeat: Infinity, duration: 0.5, delay: i * 0.05 }}
-                        className="w-1.5 bg-indigo-500 rounded-full"
+                        key={i} animate={isAiSpeaking ? { height: [10, 40, 10] } : { height: 4 }}
+                        transition={{ repeat: Infinity, duration: 0.5, delay: i * 0.05 }} className="w-1.5 bg-indigo-500 rounded-full"
                       />
                     ))}
                   </div>
                   <p className="mt-4 text-[10px] font-black text-indigo-400 uppercase tracking-widest">AI Interviewer</p>
                 </div>
               </div>
-
               <div className="bg-slate-900/50 backdrop-blur-md border border-white/5 p-8 md:p-12 rounded-[2.5rem] min-h-[250px] shadow-2xl relative">
                 <div className="absolute -top-3 left-10 bg-indigo-600 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Question</div>
                 {isLoading ? (
@@ -215,33 +180,22 @@ export default function InterviewPage() {
                 )}
               </div>
             </div>
-
-            {/* RIGHT SIDE (Controls & NEW CERTIFICATE BUTTON) */}
             <div className="lg:col-span-4 flex flex-col gap-6">
               <div className="bg-slate-900/80 rounded-[2.5rem] border border-white/5 p-8 flex flex-col items-center justify-center text-center flex-1">
                 <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={isListening ? stopMic : startMic}
-                  disabled={isAiSpeaking || isLoading}
+                  whileTap={{ scale: 0.9 }} onClick={isListening ? stopMic : startMic} disabled={isAiSpeaking || isLoading}
                   className={`w-24 h-24 rounded-full flex items-center justify-center transition-all shadow-2xl ${isListening ? 'bg-red-500 shadow-red-500/20 animate-pulse' : 'bg-indigo-600 shadow-indigo-500/20 hover:bg-indigo-500'}`}
                 >
                   {isListening ? <Square size={32} fill="white" /> : <Mic size={32} />}
                 </motion.button>
-                <p className="mt-6 font-bold text-slate-400 uppercase text-xs tracking-widest">
-                  {isListening ? "Tap to submit answer" : "Tap to answer"}
-                </p>
+                <p className="mt-6 font-bold text-slate-400 uppercase text-xs tracking-widest">{isListening ? "Tap to submit answer" : "Tap to answer"}</p>
               </div>
-
-              {/* --- CERTIFICATE REDIRECT BUTTON --- */}
               <Link href="/certificate">
                 <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                   className="bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 border border-amber-500/30 p-6 rounded-[2rem] flex items-center gap-4 cursor-pointer group shadow-lg shadow-amber-500/5"
                 >
-                  <div className="w-12 h-12 bg-amber-500/20 rounded-xl flex items-center justify-center text-amber-500">
-                    <Award size={24} />
-                  </div>
+                  <div className="w-12 h-12 bg-amber-500/20 rounded-xl flex items-center justify-center text-amber-500"><Award size={24} /></div>
                   <div className="flex-1">
                     <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Achievement Unlocked</p>
                     <p className="text-sm font-bold text-slate-200">CLAIM CERTIFICATE</p>
@@ -249,16 +203,12 @@ export default function InterviewPage() {
                   <ChevronRight className="text-amber-500 group-hover:translate-x-1 transition-transform" size={20} />
                 </motion.div>
               </Link>
-
-              {/* FINISH BUTTON */}
               <div className="bg-indigo-600 p-8 rounded-[2.5rem] flex items-center justify-between group cursor-pointer active:scale-95 transition-all">
                 <div>
                   <p className="text-[10px] font-black uppercase opacity-60 tracking-widest">Status</p>
                   <p className="text-xl font-black">FINISH INTERVIEW</p>
                 </div>
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-all">
-                  <ChevronRight />
-                </div>
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-all"><ChevronRight /></div>
               </div>
             </div>
           </motion.div>
