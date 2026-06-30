@@ -37,7 +37,7 @@ app.add_middleware(
 class ChatInput(BaseModel):
     message: str | None = None
     apiKey: str | None = None
-    history: list | None = []   # 👈 frontend se pass karo
+    history: list | None = []
 
 
 # -------- TEXT EXTRACT --------
@@ -57,7 +57,6 @@ def extract_text(content):
 
 # -------- AI RESPONSE --------
 def get_ai_response(messages, api_key):
-
     final_ai_message = None
 
     state = {
@@ -84,7 +83,6 @@ def get_ai_response(messages, api_key):
 
 # -------- VOICE --------
 def generate_voice(text, client):
-
     try:
         response = client.models.generate_content(
             model="gemini-2.5-flash-preview-tts",
@@ -127,35 +125,38 @@ def generate_voice(text, client):
 # -------- SINGLE ENDPOINT --------
 @app.post("/interview")
 def interview(input: ChatInput):
-
     start_time = time.time()
 
-    # ✅ API KEY FIX
     api_key = input.apiKey or os.getenv("GEMINI_API_KEY")
-
     if not api_key:
         raise HTTPException(status_code=400, detail="API key missing")
 
     logging.info("Request received")
 
-    # ✅ build messages from frontend history
     messages = []
 
+    # ✅ Safe mapping of history logs from client schema
     if input.history:
         for msg in input.history:
-            if msg["role"] == "user":
-                messages.append(HumanMessage(content=msg["content"]))
+            msg_content = msg.get("text") or msg.get("content") or ""
+            if not msg_content.strip():
+                continue
+            
+            if msg.get("role") == "user":
+                messages.append(HumanMessage(content=str(msg_content)))
             else:
-                messages.append(AIMessage(content=msg["content"]))
+                messages.append(AIMessage(content=str(msg_content)))
 
-    # first message
+    # ✅ Handle initial round initialization smoothly
     if not messages:
-        messages.append(
-            HumanMessage(content="Start the interview and ask the first question.")
-        )
-
-    elif input.message:
-        messages.append(HumanMessage(content=input.message))
+        if input.message:
+            messages.append(HumanMessage(content=input.message))
+        else:
+            messages.append(HumanMessage(content="Start the interview and ask the first question."))
+    else:
+        # If input.message is passed separately and isn't already the last item in our history collection
+        if input.message and messages[-1].content != input.message:
+            messages.append(HumanMessage(content=input.message))
 
     # -------- AI --------
     ai_message = get_ai_response(messages, api_key)
@@ -167,17 +168,15 @@ def interview(input: ChatInput):
 
     # -------- TTS --------
     client = genai.Client(api_key=api_key)
-
     audio_base64 = None
 
-    for i in range(2):   # 👈 reduced retries to avoid timeout
+    for i in range(2):   
         audio_base64 = generate_voice(ai_text, client)
         if audio_base64:
             break
         time.sleep(0.5)
 
     end_time = time.time()
-
     logging.info(f"Response time: {end_time - start_time:.2f}s")
 
     return {
@@ -186,7 +185,6 @@ def interview(input: ChatInput):
     }
 
 
-# -------- RUN --------
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 10000))

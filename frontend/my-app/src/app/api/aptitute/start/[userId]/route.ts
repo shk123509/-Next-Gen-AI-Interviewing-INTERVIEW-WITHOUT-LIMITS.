@@ -44,7 +44,7 @@ export async function POST(
         const genAI = new GoogleGenerativeAI(apiKey);
 
         const aiModel = genAI.getGenerativeModel({
-            model: "gemini-flash-latest" // ✅ STABLE MODEL
+            model: "gemini-2.5-pro" // ✅ STABLE MODEL
         });
 
         // ✅ REDUCED QUESTIONS (FASTER + NO TIMEOUT)

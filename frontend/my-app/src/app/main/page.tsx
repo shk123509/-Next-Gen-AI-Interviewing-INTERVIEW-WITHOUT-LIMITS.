@@ -2,10 +2,9 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, Brain, Square, Sparkles, Loader2, ChevronRight, Video, VideoOff, Award } from "lucide-react";
-import Link from "next/link"; // Link import kiya redirect ke liye
+import Link from "next/link"; 
 
 export default function InterviewPage() {
-  // ... (Baaki saara state aur logic same rahega)
   const [hasStarted, setHasStarted] = useState(false);
   const [messages, setMessages] = useState<{ role: string, text: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -16,6 +15,14 @@ export default function InterviewPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const recognitionRef = useRef<any>(null);
+  
+  const accumulatedTextRef = useRef<string>(""); 
+  const messagesRef = useRef<{ role: string, text: string }[]>([]);
+
+  // Sync messages state to our reference hook safely
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const startCamera = async () => {
     try {
@@ -29,43 +36,117 @@ export default function InterviewPage() {
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.lang = 'en-US';
-      recognitionRef.current.onresult = (e: any) => {
-        handleAIInteraction(e.results[0][0].transcript);
-        stopMic();
+      const rec = new SpeechRecognition();
+      rec.continuous = true; 
+      rec.interimResults = true; 
+      rec.lang = 'en-US';
+      
+      rec.onresult = (e: any) => {
+        let finalTranscript = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) {
+            finalTranscript += e.results[i][0].transcript + " ";
+          }
+        }
+        if (finalTranscript) {
+          accumulatedTextRef.current += finalTranscript;
+        }
       };
-      recognitionRef.current.onend = () => setIsListening(false);
+
+      rec.onend = () => {
+        setIsListening(false);
+        const textToSend = accumulatedTextRef.current.trim();
+        if (textToSend) {
+          handleAIInteraction(textToSend);
+          accumulatedTextRef.current = ""; 
+        }
+      };
+
+      recognitionRef.current = rec;
     }
   }, []);
 
-  const startMic = () => { if (!isAiSpeaking && !isLoading) { setIsListening(true); recognitionRef.current?.start(); } };
-  const stopMic = () => { setIsListening(false); recognitionRef.current?.stop(); };
+  const startMic = () => { 
+    if (!isAiSpeaking && !isLoading) { 
+      accumulatedTextRef.current = ""; 
+      setIsListening(true); 
+      try {
+        recognitionRef.current?.start(); 
+      } catch (e) {
+        console.error("Speech recognition start error:", e);
+      }
+    } 
+  };
+  
+  const stopMic = () => { 
+    try {
+      recognitionRef.current?.stop(); 
+    } catch (e) {
+      console.error("Speech recognition stop error:", e);
+      setIsListening(false);
+    }
+  };
 
   const handleAIInteraction = async (userText: string | null = null) => {
     setIsLoading(true);
+    
+    // Core adjustment: capture up-to-date state baseline safely
+    let currentHistory = [...messagesRef.current];
+    
+    if (userText) {
+      const newUserMsg = { role: 'user', text: userText };
+      currentHistory.push(newUserMsg);
+      setMessages(prev => [...prev, newUserMsg]);
+    }
+
     try {
       const apiKey = localStorage.getItem("geminiApiKey");
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/interview`, {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://next-gen-ai-interviewing-interview.onrender.com";
+      
+      const res = await fetch(`${baseUrl}/interview`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
         body: JSON.stringify({
           message: userText,
-          apiKey: apiKey, // 👈 ADD THIS
+          apiKey: apiKey,
+          history: currentHistory, 
         }),
       });
+      
+      if (!res.ok) {
+        throw new Error(`Server responded with status: ${res.status}`);
+      }
+
       const data = await res.json();
-      setMessages(prev => [...prev, { role: 'ai', text: data.text }]);
+      
+      if (data.text) {
+        setMessages(prev => [...prev, { role: 'ai', text: data.text }]);
+      }
+
       if (data.audio) {
-        const blob = new Blob([Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))], { type: 'audio/wav' });
+        const b64Data = data.audio.replace(/^data:audio\/\w+;base64,/, "");
+        const binaryStr = atob(b64Data);
+        const len = binaryStr.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'audio/wav' });
+        
         if (audioRef.current) {
           audioRef.current.src = URL.createObjectURL(blob);
           setIsAiSpeaking(true);
-          audioRef.current.play();
+          audioRef.current.play().catch(e => console.error("Audio play failed:", e));
         }
       }
-    } catch (err) { console.error(err); } finally { setIsLoading(false); }
+    } catch (err) { 
+      console.error("Fetch implementation pipeline stuttered:", err);
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
   return (
@@ -147,11 +228,11 @@ export default function InterviewPage() {
                   {isListening ? <Square size={32} fill="white" /> : <Mic size={32} />}
                 </motion.button>
                 <p className="mt-6 font-bold text-slate-400 uppercase text-xs tracking-widest">
-                  {isListening ? "I'm listening..." : "Tap to answer"}
+                  {isListening ? "Tap to submit answer" : "Tap to answer"}
                 </p>
               </div>
 
-              {/* --- CERTIFICATE REDIRECT BUTTON (NEW) --- */}
+              {/* --- CERTIFICATE REDIRECT BUTTON --- */}
               <Link href="/certificate">
                 <motion.div
                   whileHover={{ scale: 1.02 }}
